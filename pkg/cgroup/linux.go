@@ -46,6 +46,9 @@ const (
 	// Default docker prefix.
 	dockerPrefixName = "/docker/"
 
+	// Default kubepods prefix.
+	kubepodsPrefixName = "/kubepods/"
+
 	// Proc controller group path.
 	cgroupFileTemplate = "/proc/%d/cgroup"
 )
@@ -135,10 +138,13 @@ func getMemoryLimitFilePath(cgPath string) string {
 	// But they exist as a bind mount on Docker and
 	// are not accessible :  `/docker/<hash>`
 	//
+	// This same issue exists within Kubernetes,
+	// but the  path is : `/kubepods/...`
+	//
 	// We we will just ignore if there is `/docker` in the
 	// path ignore and fall back to :
 	// `/sys/fs/cgroup/memory/memory.limit_in_bytes`
-	if !strings.HasPrefix(cgPath, dockerPrefixName) {
+	if !strings.HasPrefix(cgPath, dockerPrefixName) && !strings.HasPrefix(cgPath, kubepodsPrefixName) {
 		path = filepath.Join(path, cgPath)
 	}
 
