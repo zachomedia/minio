@@ -40,7 +40,7 @@ func getMemoryLimit() (sysLimit uint64, err error) {
 	cGroupLimit, gerr := cgroup.GetMemoryLimit(os.Getpid())
 	if gerr != nil {
 		// Upon error just return system limit.
-		return sysLimit * uint64(80) / uint64(100), nil
+		return sysLimit, nil
 	}
 
 	// cgroup limit is lesser than system limit means
@@ -48,10 +48,16 @@ func getMemoryLimit() (sysLimit uint64, err error) {
 	// treat cgroup limit as the system limit.
 	if cGroupLimit <= sysLimit {
 		sysLimit = cGroupLimit
+
+		// Load currently used memory
+		cGroupUsed, gerr := cgroup.GetMemoryUsed(os.Getpid())
+		if gerr == nil {
+			sysLimit = sysLimit - cGroupUsed
+		}
 	}
 
 	// Final system limit.
-	return sysLimit * uint64(80) / uint64(100), nil
+	return sysLimit, nil
 
 }
 

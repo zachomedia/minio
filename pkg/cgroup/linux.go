@@ -40,6 +40,8 @@ const (
 	// Default string for looking for kernel memory param.
 	memoryLimitKernelParam = "memory.limit_in_bytes"
 
+	memoryUsedKernelParam = "memory.usage_in_bytes"
+
 	// Points to sys path memory path.
 	cgroupMemSysPath = "/sys/fs/cgroup/memory"
 
@@ -126,7 +128,7 @@ func getManagerKernValue(cname, path, kernParam string) (limit uint64, err error
 }
 
 // Get cgroup memory limit file path.
-func getMemoryLimitFilePath(cgPath string) string {
+func getMemoryFilePath(file, cgPath string) string {
 	path := cgroupMemSysPath
 
 	// Docker generates weird cgroup paths that don't
@@ -149,7 +151,7 @@ func getMemoryLimitFilePath(cgPath string) string {
 	}
 
 	// Final path.
-	return filepath.Join(path, memoryLimitKernelParam)
+	return filepath.Join(path, file)
 }
 
 // GetMemoryLimit - Fetches cgroup memory limit either from
@@ -171,7 +173,37 @@ func GetMemoryLimit(pid int) (limit uint64, err error) {
 		// might not be installed. We fallback to using the the sysfs
 		// path instead to lookup memory limits.
 		var b []byte
-		b, err = ioutil.ReadFile(getMemoryLimitFilePath(path))
+		b, err = ioutil.ReadFile(getMemoryFilePath(memoryLimitKernelParam, path))
+		if err != nil {
+			return 0, err
+		}
+
+		limit, err = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+	}
+
+	return limit, err
+}
+
+// GetMemoryUsed - Fetches cgroup memory usage either from
+// a file path at '/sys/fs/cgroup/memory', if path fails then
+// fallback to querying cgroup manager.
+func GetMemoryUsed(pid int) (limit uint64, err error) {
+	var cg CGEntries
+	cg, err = GetEntries(pid)
+	if err != nil {
+		return 0, err
+	}
+
+	path := cg["memory"]
+
+	limit, err = getManagerKernValue("memory", path, memoryUsedKernelParam)
+	if err != nil {
+
+		// Upon any failure returned from `cgm`, on some systems cgm
+		// might not be installed. We fallback to using the the sysfs
+		// path instead to lookup memory limits.
+		var b []byte
+		b, err = ioutil.ReadFile(getMemoryFilePath(memoryUsedKernelParam, path))
 		if err != nil {
 			return 0, err
 		}
